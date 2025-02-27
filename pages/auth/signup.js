@@ -55,7 +55,7 @@ const Signup = () => {
     }
 
     if (!validatePassword()) {
-      setErrorMessage('Password must be at least 8 characters long, contain one uppercase letter, and one number.');
+      setErrorMessage('Password must be at least 8 characters long, contain one uppercase letter, one number, and one special character.');
       return;
     }
 

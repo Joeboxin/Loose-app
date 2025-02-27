@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled, { ThemeProvider } from 'styled-components';
 import Navbar from '@/components/Dashboard/Navbar';
-import { useRouter } from 'next/router';
 import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { getDoc, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { database } from '@/backend/Firebase';
@@ -25,45 +24,60 @@ const Dashboard = () => {
   const { user } = useStateContext();
   const [financialData, setFinancialData] = useState([]);
   const [newEntry, setNewEntry] = useState({ category: '', amount: 0 });
-  const [editingIndex, setEditingIndex] = useState(null);
   const [currency, setCurrency] = useState('USD');
-  const [exchangeRate, setExchangeRate] = useState(1);
+  const [exchangeRates, setExchangeRates] = useState({ USD: 1 });
   const [theme, setTheme] = useState('light');
-  const router = useRouter();
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF'];
+
+  useEffect(() => {
+    if (!user) return;
+
+    const userDocRef = doc(database, 'users', user.uid);
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const userData = docSnap.data();
+        setFinancialData(userData.financialData || []);
+        setTheme(userData.theme || 'light');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  useEffect(() => {
+    const fetchExchangeRates = async () => {
+      try {
+        const response = await fetch(`https://v6.exchangerate-api.com/v6/17a90850d9c5c8259a4c9dd4/latest/USD`);
+        const data = await response.json();
+        setExchangeRates(data.conversion_rates || { USD: 1 });
+      } catch (error) {
+        console.error('Error fetching exchange rates:', error);
+        setExchangeRates({ USD: 1 });
+      }
+    };
+
+    fetchExchangeRates();
+  }, []);
+
+  const convertCurrency = (amount) => {
+    return (amount * (exchangeRates[currency] || 1)).toFixed(2);
+  };
+
   const handleAddEntry = async () => {
     if (!newEntry.category || newEntry.amount <= 0) {
       alert('Please enter a valid category and amount.');
       return;
     }
-  
+
     const updatedFinancialData = [...financialData, newEntry];
-  
     setFinancialData(updatedFinancialData);
-    setNewEntry({ category: '', amount: 0 }); // Reset input fields
-  
+    setNewEntry({ category: '', amount: 0 });
+
     if (user) {
       const userDocRef = doc(database, 'users', user.uid);
       await setDoc(userDocRef, { financialData: updatedFinancialData }, { merge: true });
     }
   };
-  
-
-  useEffect(() => {
-    if (!user) return;
-  
-    const userDocRef = doc(database, 'users', user.uid);
-  
-    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const userData = docSnap.data();
-        setFinancialData(userData.financialData || []);
-        setTheme(userData.theme || 'light'); // Load theme from Firestore
-      }
-    });
-  
-    return () => unsubscribe();
-  }, [user?.uid]);
 
   const toggleTheme = async () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
@@ -75,29 +89,20 @@ const Dashboard = () => {
     }
   };
 
-  const handleCurrencyChange = (e) => {
-    setCurrency(e.target.value);
-  };
-
-  const convertCurrency = (amount) => {
-    return (amount * exchangeRate).toFixed(2);
-  };
-
   return (
     <ThemeProvider theme={theme === 'light' ? lightTheme : darkTheme}>
       <Section>
         <Navbar />
         <Container>
           <Header>Dashboard</Header>
-    
+
           <ThemeToggle onClick={toggleTheme}>
             {theme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode'}
           </ThemeToggle>
 
-          {/* Currency Selector */}
           <CurrencySelector>
             <label>Currency:</label>
-            <select value={currency} onChange={handleCurrencyChange}>
+            <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
               <option value="USD">USD</option>
               <option value="EUR">EUR</option>
               <option value="GBP">GBP</option>
@@ -105,7 +110,6 @@ const Dashboard = () => {
             </select>
           </CurrencySelector>
 
-          {/* Add New Entry Form */}
           <Form>
             <Input
               type="text"
@@ -121,21 +125,23 @@ const Dashboard = () => {
             />
             <Button onClick={handleAddEntry}>Add Entry</Button>
           </Form>
-          {/* Pie Chart */}
+
           <ChartContainer>
             <PieChart width={400} height={400}>
               <Pie
-                data={financialData}
+                data={financialData.map(entry => ({
+                  name: entry.category,
+                  value: parseFloat(convertCurrency(entry.amount)),
+                }))}
                 cx={200}
                 cy={200}
-                labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                 outerRadius={80}
                 fill="#8884d8"
-                dataKey="amount"
+                dataKey="value"
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
               >
                 {financialData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell key={index} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip />
@@ -143,7 +149,6 @@ const Dashboard = () => {
             </PieChart>
           </ChartContainer>
 
-          {/* Display Financial Data */}
           <FinancialList>
             <h3>Financial Entries</h3>
             {financialData.length === 0 ? (
@@ -165,7 +170,8 @@ const Dashboard = () => {
   );
 };
 
-// STYLED COMPONENTS
+
+// Styled Components
 const Section = styled.section`
   width: 100%;
   min-height: 100vh;
@@ -186,7 +192,6 @@ const Container = styled.div`
 const Header = styled.h1`
   font-size: 2rem;
   margin-bottom: 20px;
-  color: ${({ theme }) => theme.text};
 `;
 
 const ThemeToggle = styled.button`
@@ -197,17 +202,15 @@ const ThemeToggle = styled.button`
   border-radius: 5px;
   font-size: 16px;
   cursor: pointer;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 `;
 
 const CurrencySelector = styled.div`
   margin-bottom: 20px;
-
   label {
     margin-right: 10px;
     color: ${({ theme }) => theme.text};
   }
-
   select {
     padding: 5px;
     border-radius: 5px;
@@ -219,14 +222,11 @@ const CurrencySelector = styled.div`
 const ChartContainer = styled.div`
   display: flex;
   justify-content: center;
-  margin-bottom: 20px;
 `;
 
 const FinancialList = styled.div`
   h3 {
     font-size: 1.5rem;
-    margin-bottom: 10px;
-    color: ${({ theme }) => theme.text};
   }
 `;
 
