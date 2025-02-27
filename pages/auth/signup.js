@@ -2,76 +2,90 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useRouter } from 'next/router';
 import { useStateContext } from '@/context/StateContext';
-import { checkSignInMethods, signUp } from '@/backend/Auth';
+import { signUp } from '@/backend/Auth';
 import Link from 'next/link';
 import Navbar from '@/components/Dashboard/Navbar';
-import { addDocument, getDocument, queryDocuments } from '@/backend/Database';
+import { addDocument } from '@/backend/Database';
 
 const DatabaseFunctions = async (user) => {
   const collectionName = 'users';
-  const documentId = user.uid; // Use the user's UID as the document ID
+  const documentId = user.uid;
 
-  // Extract relevant data from the user object
   const data = {
     email: user.email,
-    name: user.displayName || '', // Use empty string if displayName is null
+    name: user.displayName || '',
     uid: user.uid,
-    financialData: [], // Initialize an empty array for financial data
+    financialData: [],
     meta: {
-      creationTime: user.metadata.creationTime, // Extract creationTime as a string
-      lastSignInTime: user.metadata.lastSignInTime, // Extract lastSignInTime as a string
+      creationTime: user.metadata.creationTime,
+      lastSignInTime: user.metadata.lastSignInTime,
     },
   };
 
   try {
     await addDocument(collectionName, documentId, data);
-    console.log('User document added/updated successfully');
-
-    // Test getDocument
-    const retrievedUser = await getDocument(collectionName, documentId);
-    console.log('Retrieved user:', retrievedUser);
+    console.log('User document added successfully');
   } catch (error) {
     console.error('Error in DatabaseFunctions:', error.message);
   }
 };
 
 const Signup = () => {
-  const { user, setUser } = useStateContext();
+  const { setUser } = useStateContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [showPasswordPopup, setShowPasswordPopup] = useState(false);
   const router = useRouter();
 
-  async function validateEmail() {
+  const validateEmail = () => {
     const emailRegex = /^[\w.%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-    return emailRegex.test(email) && email.length > 0;
-  }
+    return emailRegex.test(email);
+  };
 
-  async function handleSignup() {
-    const isValidEmail = await validateEmail();
-    console.log('isValidEmail', isValidEmail);
-    if (!isValidEmail) {
-      alert('Please enter a valid email');
+  const validatePassword = () => {
+    return password.length >= 8 && /[A-Z]/.test(password) && /[0-9]/.test(password);
+  };
+
+  const handleSignup = async () => {
+    if (!validateEmail()) {
+      setErrorMessage('Please enter a valid email.');
       return;
     }
+
+    if (!validatePassword()) {
+      setErrorMessage('Password must be at least 8 characters long, contain one uppercase letter, and one number.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMessage('Passwords do not match.');
+      return;
+    }
+
     try {
       const userCredential = await signUp(email, password);
-      console.log('User signed up successfully');
-      setUser(userCredential.user); // Set the user in the state
-      await DatabaseFunctions(userCredential.user); // Pass the user object
+      setUser(userCredential.user);
+      await DatabaseFunctions(userCredential.user);
       router.push('/dashboard');
     } catch (err) {
-      console.log('Error Signing Up', err);
       if (err.code === 'auth/email-already-in-use') {
-        alert('Email is already in use. Please try another email.');
+        setErrorMessage('Email is already in use. Please try another email.');
+      } else {
+        setErrorMessage('Error signing up. Please try again.');
       }
     }
-  }
+  };
 
   return (
     <>
       <Navbar />
       <Section>
         <Header>Signup</Header>
+
+        {errorMessage && <ErrorMessage>{errorMessage}</ErrorMessage>}
+
         <InputTitle>Email</InputTitle>
         <Input
           type="email"
@@ -79,36 +93,53 @@ const Signup = () => {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Enter your email"
         />
+
         <InputTitle>Password</InputTitle>
         <Input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Enter your password"
+          onFocus={() => setShowPasswordPopup(true)}
+          onBlur={() => setShowPasswordPopup(false)}
+        />
+
+        {showPasswordPopup && (
+          <PasswordPopup>
+            <p>Password must:</p>
+            <ul>
+              <li>Be at least 8 characters long</li>
+              <li>Contain at least one uppercase letter</li>
+              <li>Contain at least one number</li>
+            </ul>
+          </PasswordPopup>
+        )}
+
+        <InputTitle>Confirm Password</InputTitle>
+        <Input
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          placeholder="Re-enter your password"
         />
 
         <UserAgreementText>
-          By signing in, you automatically agree to our{' '}
-          <UserAgreementSpan href="/legal/terms-of-use" rel="noopener noreferrer" target="_blank">
-            Terms of Use
-          </UserAgreementSpan>{' '}
-          and{' '}
-          <UserAgreementSpan href="/legal/privacy-policy" rel="noopener noreferrer" target="_blank">
-            Privacy Policy.
-          </UserAgreementSpan>
+          By signing in, you agree to our{' '}
+          <UserAgreementSpan href="/legal/terms-of-use" target="_blank">Terms of Use</UserAgreementSpan> and{' '}
+          <UserAgreementSpan href="/legal/privacy-policy" target="_blank">Privacy Policy</UserAgreementSpan>.
         </UserAgreementText>
 
         <MainButton onClick={handleSignup}>Signup</MainButton>
 
         <LoginPrompt>
-          Already have an account?{' '}
-          <LoginLink href="/auth/login">Log in here</LoginLink>
+          Already have an account? <LoginLink href="/auth/login">Log in here</LoginLink>
         </LoginPrompt>
       </Section>
     </>
   );
 };
 
+// Styled Components
 const Section = styled.section`
   display: flex;
   flex-direction: column;
@@ -153,6 +184,12 @@ const MainButton = styled.button`
   }
 `;
 
+const ErrorMessage = styled.p`
+  color: red;
+  font-size: 14px;
+  margin-bottom: 10px;
+`;
+
 const UserAgreementText = styled.p`
   font-size: 12px;
   color: #666;
@@ -169,12 +206,6 @@ const UserAgreementSpan = styled(Link)`
   }
 `;
 
-const ErrorMessage = styled.p`
-  color: red;
-  font-size: 14px;
-  margin-bottom: 10px;
-`;
-
 const LoginPrompt = styled.p`
   font-size: 14px;
   color: #666;
@@ -187,6 +218,28 @@ const LoginLink = styled(Link)`
   text-decoration: none;
   &:hover {
     text-decoration: underline;
+  }
+`;
+
+const PasswordPopup = styled.div`
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  position: absolute;
+  max-width: 280px;
+  text-align: left;
+  font-size: 12px;
+  color: #333;
+  margin-top: -5px;
+
+  ul {
+    padding-left: 20px;
+  }
+
+  li {
+    margin-bottom: 5px;
   }
 `;
 
