@@ -1,0 +1,27 @@
+{
+  "name": "mvp-starter",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",
+    "@google-cloud/local-auth": "^2.1.0",
+    "axios": "^1.6.7",
+    "babel-plugin-styled-components": "^2.1.4",
+    "crypto": "^1.0.1",
+    "firebase": "^10.14.1",
+    "googleapis": "^105.0.0",
+    "mvp-starter": "file:",
+    "next": "13.5.4",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-icons": "^5.0.1",
+    "recharts": "^2.15.1",
+    "styled-components": "^6.0.8"
+  }
+}
