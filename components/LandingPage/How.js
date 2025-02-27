@@ -8,28 +8,28 @@ const How = () => {
         <Title>How to Use Loose</Title>
         <StepsContainer>
           <Step>
-            <StepIcon src="@/public/signup.png" alt="Sign Up Icon" />
+            <StepIcon src="/signup.png" alt="Sign Up Icon" />
             <StepTitle>1. Sign Up</StepTitle>
             <StepDescription>
               Create your account in just a few seconds. It's free and easy to get started.
             </StepDescription>
           </Step>
           <Step>
-            <StepIcon src="/public/track-finances.png" alt="Track Expenses Icon" />
+            <StepIcon src="/track-finances.png" alt="Track Expenses Icon" />
             <StepTitle>2. Track Your Expenses</StepTitle>
             <StepDescription>
               Connect your bank accounts or manually add transactions to track your spending.
             </StepDescription>
           </Step>
           <Step>
-            <StepIcon src="/public/budget.png" alt="Budget Icon" />
+            <StepIcon src="/budget.png" alt="Budget Icon" />
             <StepTitle>3. Set Budgets</StepTitle>
             <StepDescription>
               Create custom budgets for different categories and stay on top of your finances.
             </StepDescription>
           </Step>
           <Step>
-            <StepIcon src="/images/icon-insights.png" alt="Insights Icon" />
+            <StepIcon src="/insight.png" alt="Insights Icon" />
             <StepTitle>4. Get Insights</StepTitle>
             <StepDescription>
               Receive personalized insights and recommendations to save more and spend smarter.

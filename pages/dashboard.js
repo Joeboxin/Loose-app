@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import styled, { ThemeProvider } from 'styled-components';
 import Navbar from '@/components/Dashboard/Navbar';
-
 import { useRouter } from 'next/router';
-import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts'; // For pie chart
-import { getDoc, doc, setDoc, onSnapshot} from 'firebase/firestore'; // For Firestore operations
-import { database } from '@/backend/Firebase'; // Import Firestore instance
+import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import { getDoc, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { database } from '@/backend/Firebase';
 import { useStateContext } from '@/context/StateContext';
-
 
 const lightTheme = {
   background: '#ffffff',
@@ -23,7 +21,6 @@ const darkTheme = {
   secondary: '#1a1f2b',
 };
 
-
 const Dashboard = () => {
   const { user } = useStateContext();
   const [financialData, setFinancialData] = useState([]);
@@ -34,84 +31,56 @@ const Dashboard = () => {
   const [theme, setTheme] = useState('light');
   const router = useRouter();
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF'];
-
-  const handleCurrencyChange = (e) => {
-    setCurrency(e.target.value);
-  };
-  const convertCurrency = (amount) => {
-    return (amount * exchangeRate).toFixed(2);
+  const handleAddEntry = async () => {
+    if (!newEntry.category || newEntry.amount <= 0) {
+      alert('Please enter a valid category and amount.');
+      return;
+    }
+  
+    const updatedFinancialData = [...financialData, newEntry];
+  
+    setFinancialData(updatedFinancialData);
+    setNewEntry({ category: '', amount: 0 }); // Reset input fields
+  
+    if (user) {
+      const userDocRef = doc(database, 'users', user.uid);
+      await setDoc(userDocRef, { financialData: updatedFinancialData }, { merge: true });
+    }
   };
   
-  const toggleTheme = () => {
-    setTheme(theme === 'light' ? 'dark' : 'light');
-  };
-  // Fetch financial data from Firestore
+
   useEffect(() => {
     if (!user) return;
   
     const userDocRef = doc(database, 'users', user.uid);
   
-    // Real-time listener for financialData
     const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
       if (docSnap.exists()) {
-        setFinancialData(docSnap.data().financialData || []);
+        const userData = docSnap.data();
+        setFinancialData(userData.financialData || []);
+        setTheme(userData.theme || 'light'); // Load theme from Firestore
       }
     });
   
-    // Cleanup the listener on component unmount
     return () => unsubscribe();
   }, [user?.uid]);
-  
 
-  // Add a new financial entry
-  const handleAddEntry = async () => {
-    if (!newEntry.category || !newEntry.amount) {
-      alert('Please fill in all fields.');
-      return;
+  const toggleTheme = async () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+
+    if (user) {
+      const userDocRef = doc(database, 'users', user.uid);
+      await setDoc(userDocRef, { theme: newTheme }, { merge: true });
     }
-
-    const updatedData = [...financialData, newEntry];
-    setFinancialData(updatedData);
-
-    // Update Firestore
-    await setDoc(doc(database, 'users', user.uid), { financialData: updatedData }, { merge: true });
-
-    // Clear the form
-    setNewEntry({ category: '', amount: 0 });
   };
 
-  // Edit an existing entry
-  const handleEditEntry = (index) => {
-    setEditingIndex(index);
-    setNewEntry(financialData[index]);
+  const handleCurrencyChange = (e) => {
+    setCurrency(e.target.value);
   };
 
-  // Update an existing entry
-  const handleUpdateEntry = async () => {
-    if (!newEntry.category || !newEntry.amount) {
-      alert('Please fill in all fields.');
-      return;
-    }
-
-    const updatedData = [...financialData];
-    updatedData[editingIndex] = newEntry;
-    setFinancialData(updatedData);
-
-    // Update Firestore
-    await setDoc(doc(database, 'users', user.uid), { financialData: updatedData }, { merge: true });
-
-    // Clear the form and reset editing state
-    setNewEntry({ category: '', amount: 0 });
-    setEditingIndex(null);
-  };
-
-  // Delete an entry
-  const handleDeleteEntry = async (index) => {
-    const updatedData = financialData.filter((_, i) => i !== index);
-    setFinancialData(updatedData);
-
-    // Update Firestore
-    await setDoc(doc(database, 'users', user.uid), { financialData: updatedData }, { merge: true });
+  const convertCurrency = (amount) => {
+    return (amount * exchangeRate).toFixed(2);
   };
 
   return (
@@ -152,7 +121,6 @@ const Dashboard = () => {
             />
             <Button onClick={handleAddEntry}>Add Entry</Button>
           </Form>
-
           {/* Pie Chart */}
           <ChartContainer>
             <PieChart width={400} height={400}>
@@ -164,7 +132,7 @@ const Dashboard = () => {
                 label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                 outerRadius={80}
                 fill="#8884d8"
-                dataKey="value"
+                dataKey="amount"
               >
                 {financialData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -248,6 +216,32 @@ const CurrencySelector = styled.div`
   }
 `;
 
+const ChartContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+`;
+
+const FinancialList = styled.div`
+  h3 {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    color: ${({ theme }) => theme.text};
+  }
+`;
+
+const Entry = styled.div`
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+
+  span {
+    font-size: 16px;
+    color: ${({ theme }) => theme.text};
+  }
+`;
+
 const Form = styled.div`
   display: flex;
   gap: 10px;
@@ -276,32 +270,6 @@ const Button = styled.button`
 
   &:hover {
     background-color: ${({ theme }) => theme.primary}99;
-  }
-`;
-
-const ChartContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  margin-bottom: 20px;
-`;
-
-const FinancialList = styled.div`
-  h3 {
-    font-size: 1.5rem;
-    margin-bottom: 10px;
-    color: ${({ theme }) => theme.text};
-  }
-`;
-
-const Entry = styled.div`
-  display: flex;
-  justify-content: space-between;
-  padding: 10px;
-  border-bottom: 1px solid #ccc;
-
-  span {
-    font-size: 16px;
-    color: ${({ theme }) => theme.text};
   }
 `;
 
