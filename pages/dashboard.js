@@ -44,10 +44,11 @@ const Dashboard = () => {
     return () => unsubscribe();
   }, [user?.uid]);
 
+  const api_key = process.env.NEXT_PUBLIC_API_KEY;
   useEffect(() => {
     const fetchExchangeRates = async () => {
       try {
-        const response = await fetch(`https://v6.exchangerate-api.com/v6/17a90850d9c5c8259a4c9dd4/latest/USD`);
+        const response = await fetch(`https://v6.exchangerate-api.com/v6/${api_key}/latest/USD`);
         const data = await response.json();
         setExchangeRates(data.conversion_rates || { USD: 1 });
       } catch (error) {
@@ -59,8 +60,8 @@ const Dashboard = () => {
     fetchExchangeRates();
   }, []);
 
-  const convertCurrency = (amount) => {
-    return (amount * (exchangeRates[currency] || 1)).toFixed(2);
+  const convertCurrency = (amountUSD) => {
+    return (amountUSD * (exchangeRates[currency] || 1)).toFixed(2);
   };
 
   const handleAddEntry = async () => {
@@ -69,7 +70,8 @@ const Dashboard = () => {
       return;
     }
 
-    const updatedFinancialData = [...financialData, newEntry];
+    const amountInUSD = newEntry.amount / (exchangeRates[currency] || 1);
+    const updatedFinancialData = [...financialData, { category: newEntry.category, amount: amountInUSD }];
     setFinancialData(updatedFinancialData);
     setNewEntry({ category: '', amount: 0 });
 
@@ -88,18 +90,16 @@ const Dashboard = () => {
       await setDoc(userDocRef, { theme: newTheme }, { merge: true });
     }
   };
-
+  
   return (
     <ThemeProvider theme={theme === 'light' ? lightTheme : darkTheme}>
       <Section>
         <Navbar />
         <Container>
           <Header>Dashboard</Header>
-
           <ThemeToggle onClick={toggleTheme}>
             {theme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode'}
           </ThemeToggle>
-
           <CurrencySelector>
             <label>Currency:</label>
             <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
@@ -109,11 +109,10 @@ const Dashboard = () => {
               <option value="JPY">JPY</option>
             </select>
           </CurrencySelector>
-
           <Form>
             <Input
               type="text"
-              placeholder="Category (e.g., Food, Rent)"
+              placeholder="Category"
               value={newEntry.category}
               onChange={(e) => setNewEntry({ ...newEntry, category: e.target.value })}
             />
@@ -125,7 +124,6 @@ const Dashboard = () => {
             />
             <Button onClick={handleAddEntry}>Add Entry</Button>
           </Form>
-
           <ChartContainer>
             <PieChart width={400} height={400}>
               <Pie
@@ -148,21 +146,13 @@ const Dashboard = () => {
               <Legend />
             </PieChart>
           </ChartContainer>
-
           <FinancialList>
-            <h3>Financial Entries</h3>
-            {financialData.length === 0 ? (
-              <p>No financial data found. Add some entries!</p>
-            ) : (
-              financialData.map((entry, index) => (
-                <Entry key={index}>
-                  <span>{entry.category}</span>
-                  <span>
-                    {currency} {convertCurrency(entry.amount)}
-                  </span>
-                </Entry>
-              ))
-            )}
+            {financialData.map((entry, index) => (
+              <Entry key={index}>
+                <span>{entry.category}</span>
+                <span>{currency} {convertCurrency(entry.amount)}</span>
+              </Entry>
+            ))}
           </FinancialList>
         </Container>
       </Section>
