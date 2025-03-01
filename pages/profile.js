@@ -26,7 +26,7 @@ const Profile = () => {
   const [profileData, setProfileData] = useState({
     name: '',
     bio: '',
-    theme: 'light', // Default to light theme
+    theme: 'light',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -35,20 +35,6 @@ const Profile = () => {
     if (user) {
       fetchUserProfile();
     }
-    if (user) {
-        const fetchTheme = async () => {
-          const userRef = doc(database, 'users', user.uid);
-          const docSnap = await getDoc(userRef);
-          if (docSnap.exists()) {
-            setProfileData((prev) => ({
-              ...prev,
-              theme: docSnap.data().theme || 'light',
-            }));
-          }
-        };
-    
-        fetchTheme();
-      }
   }, [user]);
 
   const fetchUserProfile = async () => {
@@ -58,7 +44,12 @@ const Profile = () => {
     try {
       const docSnap = await getDoc(userRef);
       if (docSnap.exists()) {
-        setProfileData(docSnap.data());
+        const data = docSnap.data();
+        setProfileData({
+          name: data.name || '',
+          bio: data.bio || '',
+          theme: data.theme || 'light', // Fetch theme from Firestore
+        });
       }
     } catch (error) {
       console.error('Error fetching profile:', error.message);

@@ -1,16 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import styled, { ThemeProvider } from 'styled-components';
 import Navbar from '@/components/Dashboard/Navbar';
-import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import FinancialPieChart from '@/components/Dashboard/FinancialPieChart';
+import CurrencySelector from '@/components/Dashboard/CurrencySelector';
+import ThemeToggle from '@/components/Dashboard/ThemeToggle';
+import FinancialEntryForm from '@/components/Dashboard/FinancialEntryForm';
+import FinancialList from '@/components/Dashboard/FinancialList';
 import { getDoc, doc, setDoc, onSnapshot } from 'firebase/firestore';
-import { database } from '@/backend/Firebase';
 import { useStateContext } from '@/context/StateContext';
+import useExchangeRates from '@/hooks/useExchangeRates';
+import { database } from '@/backend/Firebase';
 
 const lightTheme = {
   background: '#ffffff',
   text: '#0e131f',
   primary: '#55d59e',
   secondary: '#f5f5f5',
+  border: '#ddd',
 };
 
 const darkTheme = {
@@ -18,249 +24,87 @@ const darkTheme = {
   text: '#ffffff',
   primary: '#45b88d',
   secondary: '#1a1f2b',
+  border: '#555',
 };
 
+const AppContainer = styled.div`
+  background-color: ${({ theme }) => theme.background};
+  color: ${({ theme }) => theme.text};
+  min-height: 100vh;
+`;
+
 const Dashboard = () => {
-  const { user } = useStateContext();
-  const [financialData, setFinancialData] = useState([]);
-  const [newEntry, setNewEntry] = useState({ category: '', amount: 0 });
+  const exchangeRates = useExchangeRates();
   const [currency, setCurrency] = useState('USD');
-  const [exchangeRates, setExchangeRates] = useState({ USD: 1 });
-  const [theme, setTheme] = useState('light');
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF'];
+  const [theme, setTheme] = useState('light'); // Default to light theme
+  const [financialData, setFinancialData] = useState({});
+  const { user } = useStateContext();
 
+  // Fetch theme and financial data from Firestore when the component mounts
   useEffect(() => {
-    if (!user) return;
-
-    const userDocRef = doc(database, 'users', user.uid);
-    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const userData = docSnap.data();
-        setFinancialData(userData.financialData || []);
-        setTheme(userData.theme || 'light');
-      }
-    });
-
-    return () => unsubscribe();
-  }, [user?.uid]);
-
-  const api_key = process.env.NEXT_PUBLIC_API_KEY;
-  useEffect(() => {
-    const fetchExchangeRates = async () => {
-      try {
-        const response = await fetch(`https://v6.exchangerate-api.com/v6/${api_key}/latest/USD`);
-        const data = await response.json();
-        setExchangeRates(data.conversion_rates || { USD: 1 });
-      } catch (error) {
-        console.error('Error fetching exchange rates:', error);
-        setExchangeRates({ USD: 1 });
-      }
-    };
-
-    fetchExchangeRates();
-  }, []);
-
-  const convertCurrency = (amountUSD) => {
-    return (amountUSD * (exchangeRates[currency] || 1)).toFixed(2);
-  };
-
-  const handleAddEntry = async () => {
-    if (!newEntry.category || newEntry.amount <= 0) {
-      alert('Please enter a valid category and amount.');
-      return;
-    }
-
-    const amountInUSD = newEntry.amount / (exchangeRates[currency] || 1);
-    const updatedFinancialData = [...financialData, { category: newEntry.category, amount: amountInUSD }];
-    setFinancialData(updatedFinancialData);
-    setNewEntry({ category: '', amount: 0 });
-
     if (user) {
-      const userDocRef = doc(database, 'users', user.uid);
-      await setDoc(userDocRef, { financialData: updatedFinancialData }, { merge: true });
+      const userRef = doc(database, 'users', user.uid);
+
+      // Fetch theme and financial data
+      const unsubscribe = onSnapshot(userRef, (doc) => {
+        if (doc.exists()) {
+          const data = doc.data();
+          setTheme(data.theme || 'light'); // Set theme from Firestore or default to 'light'
+          setFinancialData(data.financialData || {}); // Set financial data
+        }
+      });
+
+      return () => unsubscribe();
     }
+  }, [user]);
+
+  const convertCurrency = (amount) => {
+    return amount * (exchangeRates[currency] || 1);
   };
 
+  // Toggle theme and save it to Firestore
   const toggleTheme = async () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
 
     if (user) {
-      const userDocRef = doc(database, 'users', user.uid);
-      await setDoc(userDocRef, { theme: newTheme }, { merge: true });
+      const userRef = doc(database, 'users', user.uid);
+      await setDoc(userRef, { theme: newTheme }, { merge: true }); // Save theme to Firestore
     }
   };
-  
+
+  const handleAddEntry = async (newEntry) => {
+    if (!user) return;
+
+    const { category, subcategory, amount } = newEntry;
+    if (!category || !subcategory || amount <= 0) return;
+
+    const updatedData = {
+      ...financialData,
+      [category]: {
+        ...financialData[category],
+        [subcategory]: (financialData[category]?.[subcategory] || 0) + amount,
+      },
+    };
+
+    setFinancialData(updatedData);
+
+    const financialDataRef = doc(database, 'users', user.uid);
+    await setDoc(financialDataRef, { financialData: updatedData }, { merge: true });
+  };
+
   return (
     <ThemeProvider theme={theme === 'light' ? lightTheme : darkTheme}>
-      <Section>
+      <AppContainer>
         <Navbar />
-        <Container>
-          <Header>Dashboard</Header>
-          <ThemeToggle onClick={toggleTheme}>
-            {theme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode'}
-          </ThemeToggle>
-          <CurrencySelector>
-            <label>Currency:</label>
-            <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-              <option value="JPY">JPY</option>
-            </select>
-          </CurrencySelector>
-          <Form>
-            <Input
-              type="text"
-              placeholder="Category"
-              value={newEntry.category}
-              onChange={(e) => setNewEntry({ ...newEntry, category: e.target.value })}
-            />
-            <Input
-              type="number"
-              placeholder="Amount"
-              value={newEntry.amount}
-              onChange={(e) => setNewEntry({ ...newEntry, amount: parseFloat(e.target.value) })}
-            />
-            <Button onClick={handleAddEntry}>Add Entry</Button>
-          </Form>
-          <ChartContainer>
-            <PieChart width={400} height={400}>
-              <Pie
-                data={financialData.map(entry => ({
-                  name: entry.category,
-                  value: parseFloat(convertCurrency(entry.amount)),
-                }))}
-                cx={200}
-                cy={200}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-              >
-                {financialData.map((entry, index) => (
-                  <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ChartContainer>
-          <FinancialList>
-            {financialData.map((entry, index) => (
-              <Entry key={index}>
-                <span>{entry.category}</span>
-                <span>{currency} {convertCurrency(entry.amount)}</span>
-              </Entry>
-            ))}
-          </FinancialList>
-        </Container>
-      </Section>
+        <CurrencySelector currency={currency} setCurrency={setCurrency} />
+        <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+        <FinancialEntryForm handleAddEntry={handleAddEntry} />
+        <FinancialPieChart financialData={financialData} convertCurrency={convertCurrency} />
+        <FinancialList financialData={financialData} convertCurrency={convertCurrency} currency={currency} />
+      </AppContainer>
     </ThemeProvider>
   );
 };
-
-
-// Styled Components
-const Section = styled.section`
-  width: 100%;
-  min-height: 100vh;
-  background-color: ${({ theme }) => theme.background};
-  color: ${({ theme }) => theme.text};
-  padding: 20px;
-`;
-
-const Container = styled.div`
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-  background-color: ${({ theme }) => theme.secondary};
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-`;
-
-const Header = styled.h1`
-  font-size: 2rem;
-  margin-bottom: 20px;
-`;
-
-const ThemeToggle = styled.button`
-  padding: 10px 20px;
-  background-color: ${({ theme }) => theme.primary};
-  color: ${({ theme }) => theme.text};
-  border: none;
-  border-radius: 5px;
-  font-size: 16px;
-  cursor: pointer;
-  margin-bottom: 15px;
-`;
-
-const CurrencySelector = styled.div`
-  margin-bottom: 20px;
-  label {
-    margin-right: 10px;
-    color: ${({ theme }) => theme.text};
-  }
-  select {
-    padding: 5px;
-    border-radius: 5px;
-    background-color: ${({ theme }) => theme.background};
-    color: ${({ theme }) => theme.text};
-  }
-`;
-
-const ChartContainer = styled.div`
-  display: flex;
-  justify-content: center;
-`;
-
-const FinancialList = styled.div`
-  h3 {
-    font-size: 1.5rem;
-  }
-`;
-
-const Entry = styled.div`
-  display: flex;
-  justify-content: space-between;
-  padding: 10px;
-  border-bottom: 1px solid #ccc;
-
-  span {
-    font-size: 16px;
-    color: ${({ theme }) => theme.text};
-  }
-`;
-
-const Form = styled.div`
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-`;
-
-const Input = styled.input`
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  font-size: 16px;
-  flex: 1;
-  background-color: ${({ theme }) => theme.background};
-  color: ${({ theme }) => theme.text};
-`;
-
-const Button = styled.button`
-  padding: 10px 20px;
-  background-color: ${({ theme }) => theme.primary};
-  color: ${({ theme }) => theme.text};
-  border: none;
-  border-radius: 5px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-
-  &:hover {
-    background-color: ${({ theme }) => theme.primary}99;
-  }
-`;
 
 export default Dashboard;
