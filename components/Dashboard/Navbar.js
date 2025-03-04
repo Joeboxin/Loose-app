@@ -7,7 +7,7 @@ import { useStateContext } from '@/context/StateContext';
 
 const Navbar = () => {
   const { user, setUser } = useStateContext();
-  const router = useRouter(); // ✅ Initialize router
+  const router = useRouter();
 
   // Handle logout functionality
   const handleLogout = async () => {
@@ -29,8 +29,6 @@ const Navbar = () => {
           // Display logout when user is signed in
           <>
             <ButtonLink href="/profile">Profile</ButtonLink>
-            {/* <ButtonLink href="/dashboard">Dashboard</ButtonLink> */}
-            {/* <ButtonLink href="/settings">Settings</ButtonLink> */}
             <Button onClick={handleLogout}>Logout</Button> 
           </>
         ) : (
@@ -56,7 +54,7 @@ const Nav = styled.nav`
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 `;
 
-const Logo = styled(Link)`
+const Logo = styled.a`
   font-size: 1.5rem;
   font-weight: 700;
   color: #55D59E;
@@ -68,6 +66,7 @@ const Logo = styled(Link)`
     opacity: 0.8;
   }
 `;
+
 
 const NavLinks = styled.div`
   display: flex;

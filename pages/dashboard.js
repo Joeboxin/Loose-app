@@ -6,6 +6,7 @@ import CurrencySelector from '@/components/Dashboard/CurrencySelector';
 import ThemeToggle from '@/components/Dashboard/ThemeToggle';
 import FinancialEntryForm from '@/components/Dashboard/FinancialEntryForm';
 import FinancialList from '@/components/Dashboard/FinancialList';
+import FinanceChat from '@/components/Dashboard/ChatBot';
 import { getDoc, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { useStateContext } from '@/context/StateContext';
 import useExchangeRates from '@/hooks/useExchangeRates';
@@ -102,9 +103,13 @@ const Dashboard = () => {
         <FinancialEntryForm handleAddEntry={handleAddEntry} />
         <FinancialPieChart financialData={financialData} convertCurrency={convertCurrency} />
         <FinancialList financialData={financialData} convertCurrency={convertCurrency} currency={currency} />
+        
+        {/* Add FinanceChat Component */}
+        <FinanceChat />
       </AppContainer>
     </ThemeProvider>
   );
 };
+
 
 export default Dashboard;
