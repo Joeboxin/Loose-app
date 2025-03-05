@@ -28,6 +28,7 @@ const Navbar = () => {
         {user ? (
           // Display logout when user is signed in
           <>
+            <ButtonLink href="/dashboard">Dashboard</ButtonLink>
             <ButtonLink href="/profile">Profile</ButtonLink>
             <Button onClick={handleLogout}>Logout</Button> 
           </>

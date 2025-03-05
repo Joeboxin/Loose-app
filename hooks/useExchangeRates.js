@@ -13,7 +13,6 @@ const currencySymbols = {
 
 const useExchangeRates = () => {
   const api_key = process.env.NEXT_PUBLIC_API_KEY;
-  console.log("API KEY: " + api_key);
   const [exchangeRates, setExchangeRates] = useState({ USD: 1 });
 
   useEffect(() => {
@@ -21,7 +20,6 @@ const useExchangeRates = () => {
       try {
         const response = await fetch(`https://v6.exchangerate-api.com/v6/${api_key}/latest/USD`);
         const data = await response.json();
-        console.log(data);
 
         // Filter only the required currencies
         const filteredRates = Object.keys(currencySymbols).reduce((acc, cur) => {
