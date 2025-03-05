@@ -31,19 +31,3 @@ async function generateFinancialAdvice(user, financialData, userPrompt) {
     console.error("Error fetching response:", error);
   }
 }
-
-// Example user data
-const user = { name: "John Doe", uid: "user123" };
-const financialData = {
-  income: 5000,
-  expenses: { rent: 1200, groceries: 500, entertainment: 200 },
-  savings: 10000,
-  debt: 2000,
-  currency: "USD"
-};
-
-// Example user prompt
-const userPrompt = "How can I save more money while paying off my debt?";
-
-// Call the function
-generateFinancialAdvice(user, financialData, userPrompt);
