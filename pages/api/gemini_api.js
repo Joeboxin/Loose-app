@@ -12,10 +12,7 @@ async function generateFinancialAdvice(user, financialData, userPrompt) {
     const prompt = `
     User Profile:
     - Name: ${user.name || "Unknown"}
-    - Income: ${financialData.salary || "Not provided"} ${financialData.currency || "USD"}
-    - Savings: ${financialData.savings || "Not provided"} ${financialData.currency || "USD"}
-    - Debt: ${financialData.debt || "Not provided"} ${financialData.currency || "USD"}
-    - Key Expenses: Rent ${financialData.expenses?.rent || "N/A"}, Groceries ${financialData.expenses?.groceries || "N/A"}
+    - Expenses, Salary, and Debt: ${financialData || "N/A"}}
     
     User's Question:
     "${userPrompt}"
