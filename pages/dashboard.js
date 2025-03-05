@@ -103,9 +103,7 @@ const Dashboard = () => {
         <FinancialEntryForm handleAddEntry={handleAddEntry} />
         <FinancialPieChart financialData={financialData} convertCurrency={convertCurrency} />
         <FinancialList financialData={financialData} convertCurrency={convertCurrency} currency={currency} />
-        
-        {/* Add FinanceChat Component */}
-        <FinanceChat />
+        <FinanceChat user={user} financialData={financialData} currency={currency} />
       </AppContainer>
     </ThemeProvider>
   );

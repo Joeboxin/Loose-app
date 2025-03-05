@@ -1,6 +1,7 @@
 import { useState } from "react";
 import styled from "styled-components";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import generateFinancialAdvice from "@/pages/api/gemini_api";
 
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
@@ -60,7 +61,7 @@ const Button = styled.button`
   cursor: ${(props) => (props.disabled ? "not-allowed" : "pointer")};
 `;
 
-export default function FinanceChat() {
+export default function FinanceChat({ financialData, currency }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -68,20 +69,24 @@ export default function FinanceChat() {
   const handleSend = async () => {
     if (!input.trim()) return;
     setLoading(true);
-    
+  
     const userMessage = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
-    
+  
     try {
-      const result = await model.generateContent(input);
-      const responseText = result.response.text();
-      
-      const aiMessage = { role: "ai", content: responseText };
-      setMessages((prev) => [...prev, aiMessage]);
+      const user = { name: "User" }; // You can replace this with actual user data from context if needed
+  
+      // Call `generateFinancialAdvice` with financial data
+      const result = await generateFinancialAdvice(user, financialData, input);
+  
+      if (result) {
+        const aiMessage = { role: "ai", content: result };
+        setMessages((prev) => [...prev, aiMessage]);
+      }
     } catch (error) {
       console.error("Error fetching response:", error);
     }
-    
+  
     setInput("");
     setLoading(false);
   };
@@ -90,10 +95,16 @@ export default function FinanceChat() {
     <ChatContainer>
       <Title>Financial Advice Chat</Title>
       <ChatBox>
-        {messages.map((msg, index) => (
-          <Message key={index} role={msg.role}>{msg.content}</Message>
-        ))}
-      </ChatBox>
+  {messages.map((msg, index) => {
+    // Ensure msg.content is a string or valid JSX
+    const content = typeof msg.content === "function" ? msg.content() : msg.content;
+    return (
+      <Message key={index} role={msg.role}>
+        {content || "No content"}
+      </Message>
+    );
+  })}
+</ChatBox>
       <InputContainer>
         <Input
           value={input}

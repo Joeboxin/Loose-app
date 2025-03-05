@@ -27,6 +27,10 @@ const Profile = () => {
     name: '',
     bio: '',
     theme: 'light',
+    financialData: {
+      salary: 0,
+      debt: 0,
+    },
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -40,7 +44,7 @@ const Profile = () => {
   const fetchUserProfile = async () => {
     if (!user) return;
     const userRef = doc(database, 'users', user.uid);
-
+  
     try {
       const docSnap = await getDoc(userRef);
       if (docSnap.exists()) {
@@ -48,7 +52,8 @@ const Profile = () => {
         setProfileData({
           name: data.name || '',
           bio: data.bio || '',
-          theme: data.theme || 'light', // Fetch theme from Firestore
+          theme: data.theme || 'light',
+          financialData: data.financialData || { salary: 0, debt: 0 }, // Fetch financialData
         });
       }
     } catch (error) {
@@ -59,7 +64,21 @@ const Profile = () => {
   };
 
   const handleChange = (e) => {
-    setProfileData({ ...profileData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+  
+    // Handle salary and debt fields (convert to integers)
+    if (name === 'salary' || name === 'debt') {
+      setProfileData({
+        ...profileData,
+        financialData: {
+          ...profileData.financialData,
+          [name]: parseInt(value) || 0,
+        },
+      });
+    } else {
+      // Handle other fields (name, bio, etc.)
+      setProfileData({ ...profileData, [name]: value });
+    }
   };
 
   const handleSave = async () => {
@@ -101,6 +120,21 @@ const Profile = () => {
             onChange={handleChange}
             placeholder="Tell us about yourself..."
           />
+          <Input
+            type="number"
+            name="salary"
+            value={profileData.financialData.salary}
+            onChange={handleChange}
+            placeholder="Salary"
+          />
+          <Input
+            type="number"
+            name="debt"
+            value={profileData.financialData.debt}
+            onChange={handleChange}
+            placeholder="Debt"
+          />
+          
           <SaveButton onClick={handleSave} disabled={saving}>
             {saving ? 'Saving...' : 'Save Profile'}
           </SaveButton>

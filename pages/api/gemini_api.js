@@ -12,9 +12,9 @@ async function generateFinancialAdvice(user, financialData, userPrompt) {
     const prompt = `
     User Profile:
     - Name: ${user.name || "Unknown"}
-    - Income: ${financialData.income || "Not provided"} ${financialData.currency || "USD"}
-    - Savings: ${financialData.savings || 0} ${financialData.currency || "USD"}
-    - Debt: ${financialData.debt || 0} ${financialData.currency || "USD"}
+    - Income: ${financialData.salary || "Not provided"} ${financialData.currency || "USD"}
+    - Savings: ${financialData.savings || "Not provided"} ${financialData.currency || "USD"}
+    - Debt: ${financialData.debt || "Not provided"} ${financialData.currency || "USD"}
     - Key Expenses: Rent ${financialData.expenses?.rent || "N/A"}, Groceries ${financialData.expenses?.groceries || "N/A"}
     
     User's Question:
@@ -24,10 +24,22 @@ async function generateFinancialAdvice(user, financialData, userPrompt) {
     Prioritize **budgeting, debt repayment, and savings growth**. Use **concise bullet points** if necessary.
     `;
     
-
     const result = await model.generateContent(prompt);
-    console.log(result.response.text());
+    
+    // Log the entire result object to check its structure
+    console.log(result);
+
+    // If the result contains the response text, log it
+    if (result?.response?.text) {
+      console.log(result.response.text);
+    } else {
+      console.log("No response text found in the result.");
+    }
+
+    return result?.response?.text;  // Returning the result for use elsewhere
   } catch (error) {
     console.error("Error fetching response:", error);
   }
 }
+
+export default generateFinancialAdvice;
